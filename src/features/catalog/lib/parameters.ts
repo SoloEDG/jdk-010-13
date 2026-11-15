@@ -1,13 +1,26 @@
 import type { Element } from "../../../shared/document";
+import { spectrumOf } from "../../optics/lib/spectrum";
+
+export type NumericKey =
+  | "angle"
+  | "size"
+  | "power"
+  | "rays"
+  | "spread"
+  | "wavelength"
+  | "focal"
+  | "index";
+
 export interface Parameter {
-  key: keyof Element;
+  key: NumericKey;
   label: string;
   min: number;
   max: number;
   step: number;
   unit: string;
 }
-export function parameters(e: Element): Parameter[] {
+
+export function parameters(element: Element): Parameter[] {
   const common: Parameter[] = [
     {
       key: "angle",
@@ -19,23 +32,29 @@ export function parameters(e: Element): Parameter[] {
     },
     {
       key: "size",
-      label: e.kind === "source" ? "光束宽度" : "器件口径",
+      label: element.kind === "source" ? "光束宽度" : "器件口径",
       min: 10,
       max: 300,
       step: 1,
       unit: "mm",
     },
   ];
-  if (e.kind === "source")
-    common.push(
-      {
+  if (element.kind === "source") {
+    // The wavelength slider and spectrum editor write the same value: editing
+    // the slider updates band 1 of the spectrum, and a single-line spectrum
+    // writes its wavelength back here, so a monochromatic source behaves like
+    // the original single-wavelength control. A continuous source has no one
+    // "main wavelength", so the slider is replaced by the spectrum editor.
+    if (spectrumOf(element).mode !== "continuous")
+      common.push({
         key: "wavelength",
-        label: "波长",
+        label: "主波长",
         min: 380,
         max: 750,
         step: 1,
         unit: "nm",
-      },
+      });
+    common.push(
       { key: "rays", label: "采样光线", min: 3, max: 41, step: 2, unit: "条" },
       { key: "spread", label: "发散角", min: 0, max: 60, step: 1, unit: "°" },
       {
@@ -47,7 +66,8 @@ export function parameters(e: Element): Parameter[] {
         unit: "W",
       },
     );
-  if (e.kind === "lens")
+  }
+  if (element.kind === "lens")
     common.push({
       key: "focal",
       label: "焦距",
@@ -56,7 +76,7 @@ export function parameters(e: Element): Parameter[] {
       step: 10,
       unit: "mm",
     });
-  if (e.kind === "prism")
+  if (element.kind === "prism")
     common.push({
       key: "index",
       label: "折射率 nD",

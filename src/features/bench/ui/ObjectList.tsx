@@ -1,5 +1,6 @@
 import type { LabDocument } from "../../../shared/document";
 import { labels } from "../../../shared/document";
+import { spectrumSummary } from "../../optics/lib/spectrum";
 export function ObjectList({
   doc,
   selected,
@@ -25,7 +26,9 @@ export function ObjectList({
             {labels[e.kind]} {String(i + 1).padStart(2, "0")}
           </span>
           <small>
-            {Math.round(e.x)}, {Math.round(e.y)}
+            {e.kind === "source"
+              ? spectrumSummary(e)
+              : `${Math.round(e.x)}, ${Math.round(e.y)}`}
           </small>
         </button>
       ))}

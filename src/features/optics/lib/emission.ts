@@ -1,6 +1,8 @@
 import type { Element } from "../../../shared/document";
 import { direction, add, mul } from "../../../shared/geometry";
-export function emit(source: Element) {
+
+/** Spatial rays are wavelength independent; only refraction depends on λ. */
+export function spatialRays(source: Element) {
   const count = Math.max(1, Math.min(41, Math.round(source.rays))),
     t = direction(source.angle + 90);
   return Array.from({ length: count }, (_, i) => {
@@ -8,10 +10,10 @@ export function emit(source: Element) {
     return {
       origin: add(source, mul(t, q * source.size)),
       direction: direction(source.angle + q * source.spread),
-      power: source.power / count,
     };
   });
 }
+
 export function wavelengthColor(w: number) {
   if (w < 450) return "#9e7bff";
   if (w < 495) return "#63b7ff";

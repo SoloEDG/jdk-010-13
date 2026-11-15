@@ -1,6 +1,9 @@
 import { Trash2, SlidersHorizontal } from "lucide-react";
 import { labels, type Element } from "../../../shared/document";
+import { spectrumOf, syncLegacyWavelength } from "../../optics/lib/spectrum";
 import { parameters } from "../lib/parameters";
+import { SpectrumEditor } from "./SpectrumEditor";
+
 export function Inspector({
   element,
   onUpdate,
@@ -56,37 +59,67 @@ export function Inspector({
           </label>
         ))}
       </div>
-      {parameters(element).map((p) => (
-        <label className="parameter" key={p.key}>
+      {parameters(element).map((parameter) => (
+        <label className="parameter" key={parameter.key}>
           <span>
-            {p.label}
+            {parameter.label}
             <b>
-              {Number(element[p.key]).toFixed(p.step < 1 ? 2 : 0)}{" "}
-              <small>{p.unit}</small>
+              {Number(element[parameter.key]).toFixed(
+                parameter.step < 1 ? 2 : 0,
+              )}{" "}
+              <small>{parameter.unit}</small>
             </b>
           </span>
           <input
-            aria-label={p.label}
+            aria-label={parameter.label}
             type="range"
-            min={p.min}
-            max={p.max}
-            step={p.step}
-            value={Number(element[p.key])}
-            onChange={(e) =>
-              onUpdate({
-                [p.key]:
-                  p.key === "focal" && Number(e.target.value) === 0
-                    ? 10
-                    : Number(e.target.value),
-              })
-            }
+            min={parameter.min}
+            max={parameter.max}
+            step={parameter.step}
+            value={Number(element[parameter.key])}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (parameter.key === "wavelength" && element.kind === "source") {
+                // The main wavelength slider edits the first line in place,
+                // keeping weights and every other band untouched.
+                const spectrum = spectrumOf(element);
+                const first = spectrum.bands[0];
+                if (first.kind !== "line") {
+                  onUpdate({ wavelength: value });
+                  return;
+                }
+                const bands = [
+                  { ...first, wavelength: value },
+                  ...spectrum.bands.slice(1),
+                ];
+                onUpdate({
+                  wavelength: value,
+                  spectrum: { mode: spectrum.mode, bands },
+                });
+                return;
+              }
+              const patch = {
+                [parameter.key]:
+                  parameter.key === "focal" && value === 0 ? 10 : value,
+              } as Partial<Element>;
+              // Power/ray/spread edits leave the spectrum untouched; only a
+              // single-line spectrum needs its legacy wavelength mirrored.
+              onUpdate(
+                element.kind === "source" && parameter.key !== "wavelength"
+                  ? syncLegacyWavelength({ ...element, ...patch })
+                  : patch,
+              );
+            }}
           />
           <div className="range-label">
-            <span>{p.min}</span>
-            <span>{p.max}</span>
+            <span>{parameter.min}</span>
+            <span>{parameter.max}</span>
           </div>
         </label>
       ))}
+      {element.kind === "source" && (
+        <SpectrumEditor element={element} onUpdate={onUpdate} />
+      )}
       <button className="delete" onClick={onRemove}>
         <Trash2 size={14} />
         移除器件

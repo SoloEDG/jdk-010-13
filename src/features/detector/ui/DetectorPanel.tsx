@@ -1,6 +1,14 @@
-import type { Element } from "../../../shared/document";
+import type { AnalysisQuality, Element } from "../../../shared/document";
 import type { Measurement } from "../lib/measurement";
-import { EnergyChart } from "./EnergyChart";
+import { BandLegend, EnergyChart } from "./EnergyChart";
+
+interface BandOption {
+  id: string;
+  source: string;
+  label: string;
+  energy: number;
+}
+
 export function DetectorPanel({
   screen,
   screens,
@@ -8,6 +16,13 @@ export function DetectorPanel({
   onChoose,
   resolution,
   onResolution,
+  bands,
+  bandFilter,
+  onBandFilter,
+  quality,
+  analysisId,
+  budgetLimited,
+  mergedLines,
 }: {
   screen?: Element;
   screens: Element[];
@@ -15,11 +30,21 @@ export function DetectorPanel({
   onChoose: (id: string) => void;
   resolution: number;
   onResolution: (n: number) => void;
+  bands: BandOption[];
+  bandFilter: string;
+  onBandFilter: (id: string) => void;
+  quality: AnalysisQuality;
+  analysisId: string;
+  budgetLimited: boolean;
+  mergedLines: number;
 }) {
   return (
     <section className="detector">
       <div className="section-title">
-        接收屏分析 <span className="live-dot">实时测量</span>
+        接收屏分析
+        <span className={"live-dot " + quality}>
+          {quality === "preview" ? "拖动预览 · 近似" : "稳定测量"}
+        </span>
       </div>
       <div className="detector-body">
         <div className="chart-wrap">
@@ -40,6 +65,19 @@ export function DetectorPanel({
               )}
             </select>
             <select
+              aria-label="波段"
+              value={bandFilter}
+              onChange={(e) => onBandFilter(e.target.value)}
+            >
+              <option value="">全部波段</option>
+              {bands.map((band, i) => (
+                <option key={band.id} value={band.id}>
+                  {bands.length > 1 ? `波段 ${i + 1} · ` : ""}
+                  {band.label}
+                </option>
+              ))}
+            </select>
+            <select
               aria-label="采样精度"
               value={resolution}
               onChange={(e) => onResolution(Number(e.target.value))}
@@ -50,6 +88,7 @@ export function DetectorPanel({
             </select>
           </div>
           <EnergyChart measurement={m} />
+          <BandLegend measurement={m} />
           <div className="chart-axis">
             <span>−{(screen?.size ?? 0) / 2} mm</span>
             <span>光轴中心</span>
@@ -74,6 +113,20 @@ export function DetectorPanel({
             <strong>
               {m.count} <em>条</em>
             </strong>
+          </div>
+          <div className="accuracy">
+            <small>采样误差</small>
+            {/* Both numbers describe the bands currently selected, so a band
+                filter narrows the error estimate along with the curve. */}
+            <span>
+              ±{m.uncertainty.toFixed(3)} W
+              {m.maxGap > 0 ? ` · 最大间隔 ${m.maxGap.toFixed(1)} nm` : ""}
+            </span>
+            {budgetLimited && <b>受光线预算限制</b>}
+            {mergedLines > 0 && (
+              <b>已合并 {mergedLines} 条过密谱线（功率守恒）</b>
+            )}
+            <code title="分析 ID：光谱 + 布局 + 采样">{analysisId}</code>
           </div>
         </div>
       </div>

@@ -1,41 +1,62 @@
 import type { LabDocument } from "../../../shared/document";
+import { isSpectrumValid, normalizeDocument } from "../../optics/lib/spectrum";
+
+const KEY = "lumen-document";
+const KIND = ["source", "mirror", "lens", "prism", "screen"];
+const NUMBERS = [
+  "x",
+  "y",
+  "angle",
+  "size",
+  "power",
+  "rays",
+  "spread",
+  "wavelength",
+  "focal",
+  "index",
+];
+
 export function saveDocument(doc: LabDocument) {
-  localStorage.setItem("lumen-document", JSON.stringify(doc));
+  localStorage.setItem(KEY, JSON.stringify(normalizeDocument(doc)));
+  localStorage.setItem(
+    "lumen-document-meta",
+    JSON.stringify({ savedAt: Date.now(), version: doc.version }),
+  );
 }
+
+/**
+ * Loads either a legacy version-1 document (one wavelength per source) or a
+ * version-2 document with spectra. Legacy sources are upgraded to a single
+ * spectral line with the same wavelength and power, so an old experiment is
+ * restored bit-for-bit in energy terms.
+ */
 export function loadDocument(): LabDocument | null {
   try {
-    const v = JSON.parse(localStorage.getItem("lumen-document") ?? "null");
-    if (v?.version !== 1 || !Array.isArray(v.items) || v.items.length > 80)
-      return null;
-    for (const e of v.items) {
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? "null");
+    if (!raw || !Array.isArray(raw.items) || raw.items.length > 80) return null;
+    if (raw.version !== 1 && raw.version !== 2) return null;
+    for (const element of raw.items) {
+      if (!KIND.includes(element.kind) || typeof element.id !== "string")
+        return null;
+      for (const key of NUMBERS)
+        if (!Number.isFinite(element[key])) return null;
       if (
-        !["source", "mirror", "lens", "prism", "screen"].includes(e.kind) ||
-        typeof e.id !== "string"
+        element.rays < 1 ||
+        element.rays > 41 ||
+        element.size <= 0 ||
+        element.focal === 0 ||
+        element.index < 1
       )
         return null;
-      for (const k of [
-        "x",
-        "y",
-        "angle",
-        "size",
-        "power",
-        "rays",
-        "spread",
-        "wavelength",
-        "focal",
-        "index",
-      ])
-        if (!Number.isFinite(e[k])) return null;
       if (
-        e.rays < 1 ||
-        e.rays > 41 ||
-        e.size <= 0 ||
-        e.focal === 0 ||
-        e.index < 1
+        element.kind === "source" &&
+        raw.version === 2 &&
+        element.spectrum !== undefined &&
+        !isSpectrumValid(element.spectrum)
       )
         return null;
     }
-    return v;
+    return normalizeDocument(raw as LabDocument);
   } catch {
     return null;
   }

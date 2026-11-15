@@ -6,11 +6,14 @@ export function RayLayer({
   visible,
   normals,
   doc,
+  preview = false,
 }: {
   result: TraceResult;
   visible: boolean;
   normals: boolean;
   doc: LabDocument;
+  /** Preview rays are drawn dashed and faded so they are never read as final. */
+  preview?: boolean;
 }) {
   return (
     <g pointerEvents="none">
@@ -23,8 +26,9 @@ export function RayLayer({
             x2={s.to.x}
             y2={s.to.y}
             stroke={wavelengthColor(s.wavelength)}
-            strokeWidth="1.3"
-            opacity=".7"
+            strokeWidth={preview ? "1" : "1.3"}
+            strokeDasharray={preview ? "4 4" : undefined}
+            opacity={preview ? ".35" : ".7"}
           />
         ))}
       {normals &&

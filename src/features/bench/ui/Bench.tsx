@@ -10,6 +10,7 @@ export function Bench({
   onUpdate,
   children,
   grid,
+  onPreview,
 }: {
   doc: LabDocument;
   selected: string | null;
@@ -17,6 +18,12 @@ export function Bench({
   onUpdate: (id: string, patch: Partial<Element>) => void;
   children: ReactNode;
   grid: boolean;
+  /**
+   * Reports the in-flight drag layout. The committed document is untouched
+   * until pointer-up, so undo, save and the stable analysis never see a
+   * half-dragged device.
+   */
+  onPreview?: (doc: LabDocument | null) => void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<{
@@ -36,7 +43,20 @@ export function Bench({
       onPointerMove={(ev) => {
         if (drag && svg.current) {
           const p = worldPoint(svg.current, ev.clientX, ev.clientY);
-          setDrag({ ...drag, x: p.x + drag.dx, y: p.y + drag.dy });
+          const next = {
+            ...drag,
+            x: Math.max(20, Math.min(980, p.x + drag.dx)),
+            y: Math.max(20, Math.min(580, p.y + drag.dy)),
+          };
+          setDrag(next);
+          onPreview?.({
+            ...doc,
+            items: doc.items.map((element) =>
+              element.id === next.id
+                ? { ...element, x: next.x, y: next.y }
+                : element,
+            ),
+          });
         }
       }}
       onPointerUp={() => {
@@ -46,9 +66,13 @@ export function Bench({
             y: Math.max(20, Math.min(580, drag.y)),
           });
           setDrag(null);
+          onPreview?.(null);
         }
       }}
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={() => {
+        setDrag(null);
+        onPreview?.(null);
+      }}
       onPointerDown={(ev) => {
         if (ev.target === ev.currentTarget) onSelect(null);
       }}

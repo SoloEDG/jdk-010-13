@@ -17,6 +17,11 @@ export function refract(
     ? null
     : norm(add(mul(d, ratio), mul(n, ratio * c - Math.sqrt(k))));
 }
+/**
+ * Cauchy dispersion anchored at the sodium D line: n(550 nm) is exactly the
+ * editable `index`, so a 550 nm monochromatic experiment is unchanged, while
+ * the visible spread is strong enough for a prism to separate bands.
+ */
 export function materialIndex(base: number, wavelength: number) {
-  return base + 0.004 * ((550 / wavelength) ** 2 - 1);
+  return base + 5.5e3 * (1 / wavelength ** 2 - 1 / 550 ** 2);
 }
